@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Redirecting...</title>
+  <meta name="robots" content="noindex, nofollow" />
   <script src="https://cdn.auth0.com/js/auth0-spa-js/1.20/auth0-spa-js.production.js"></script>
   <style>
     @keyframes blink {
@@ -28,18 +29,30 @@
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      const auth0 = await createAuth0Client({
-        domain: "nirm.uk.auth0.com",
-        client_id: "nPJ9Ks5rLkanZ4D6C3Qud5gu5vIkopm6", // ✅ updated client ID
-        redirect_uri: window.location.origin
-      });
-
+    (async () => {
       try {
+        const auth0 = await createAuth0Client({
+          domain: "nirm.uk.auth0.com",
+          client_id: "nPJ9Ks5rLkanZ4D6C3Qud5gu5vIkopm6",
+          redirect_uri: window.location.origin
+        });
+
+        // Check if URL has Auth0 redirect params
+        const query = window.location.search;
+        if (!query.includes('code=') && !query.includes('state=')) {
+          // No OAuth redirect data, likely direct access - send to home
+          window.location.href = "https://nirm.uk";
+          return;
+        }
+
+        // Process redirect callback
         await auth0.handleRedirectCallback();
+
+        // Get user info
         const user = await auth0.getUser();
         const role = user["https://nirm.uk/role"];
 
+        // Redirect based on role
         if (role === "individual") {
           window.location.href = "https://sapphire.nirm.uk";
         } else if (role === "business") {
@@ -48,9 +61,10 @@
           window.location.href = "https://nirm.uk";
         }
       } catch (err) {
+        // On error, redirect home
         window.location.href = "https://nirm.uk";
       }
-    });
+    })();
   </script>
 </body>
 </html>
