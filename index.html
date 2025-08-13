@@ -4,50 +4,56 @@
   <meta charset="UTF-8" />
   <title>Redirecting...</title>
   <meta name="robots" content="noindex, nofollow" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.auth0.com/js/auth0-spa-js/2.0/auth0-spa-js.production.js"></script>
   <style>
-    @keyframes blink {
-      0% { opacity: 0.2; }
-      50% { opacity: 1; }
-      100% { opacity: 0.2; }
-    }
     body {
-      background: #fffcf0;
+      background-color: #fffcf0;
       font-family: 'Bricolage Grotesque', sans-serif;
       color: #001b3e;
       text-align: center;
       padding-top: 30vh;
     }
+    @keyframes blink { 0%{opacity:0.2;}50%{opacity:1;}100%{opacity:0.2;} }
+    .loading { font-size: 1.5rem; animation: blink 1.2s infinite; }
   </style>
 </head>
 <body>
-  <div style="font-size: 1.5rem; animation: blink 1.2s infinite;">
-    Redirecting to your designated page...
-  </div>
-  <div style="margin-top: 20px;">
-    <a href="https://nirm.uk" style="color:#0070f3; text-decoration:underline;">Not redirected? Click here to return to main page</a>
+  <div class="loading">Verifying your login…</div>
+  <div style="margin-top:20px;">
+    <a href="https://nirm.uk" style="color:#0070f3; text-decoration:underline;">Back to home</a>
   </div>
 
   <script>
     (async () => {
       try {
+        // Initialize Auth0 client
         const auth0 = await createAuth0Client({
           domain: "nirm.uk.auth0.com",
           client_id: "nPJ9Ks5rLkanZ4D6C3Qud5gu5vIkopm6",
-          redirect_uri: window.location.origin + "/callback.html"
+          redirect_uri: "https://callback.nirm.uk/"
         });
 
+        // Block direct manual access: only allow if query has code/state
         const query = window.location.search;
-        if (!query.includes('code=') && !query.includes('state=')) {
+        if (!query.includes('code=') || !query.includes('state=')) {
+          // Not a valid Auth0 redirect
           window.location.href = "https://nirm.uk";
           return;
         }
 
+        // Handle Auth0 redirect callback
         await auth0.handleRedirectCallback();
 
-        const user = await auth0.getUser();
-        const role = user["https://nirm.uk/role"];
+        // Get access token silently
+        const token = await auth0.getTokenSilently();
+        localStorage.setItem('auth_token', token);
 
+        // Get user info (custom claims added via Auth0 Rules/Actions)
+        const user = await auth0.getUser();
+        const role = user["https://nirm.uk/role"]; // Must exist via Auth0 custom claim
+
+        // Redirect based on role if assigned, otherwise fallback to home
         if (role === "individual") {
           window.location.href = "https://sapphire.nirm.uk";
         } else if (role === "business") {
@@ -55,8 +61,10 @@
         } else {
           window.location.href = "https://nirm.uk";
         }
+
       } catch (err) {
         console.error("Auth0 callback error:", err);
+        // On error or direct navigation fallback
         window.location.href = "https://nirm.uk";
       }
     })();
